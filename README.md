@@ -1,27 +1,29 @@
-# Hw3App
+# StockApp — Angular + Node (Stocks Search)
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 17.3.2.
+Single-page Angular app with a minimal Node/Express backend (proxy) that serves stock data and UI features like autocomplete, quotes, charts, news, watchlist, and portfolio.
 
-## Development server
+> **Note**: This repository contains only the source code. Deployment artifacts (e.g., App Engine config, builds) are intentionally excluded.
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+## Tech Stack
+- **Frontend**: Angular, Angular Material, Bootstrap (responsive)
+- **Charts**: Highcharts (via highcharts-angular)
+- **Backend**: Node/Express proxy (all API calls go through server)
+- **Data**: Finnhub, Polygon.io
+- **Database**: MongoDB Atlas (watchlist & portfolio)
 
-## Code scaffolding
+## Key Features
+- Search with **autocomplete** (typeahead filters common stocks)
+- Ticker **details page** with market status, price, and summary
+- **Tabs**: Summary • Top News • Charts • Insights
+- **Watchlist** (MongoDB): add/remove tickers with alerts
+- **Portfolio** (MongoDB): wallet, buy/sell modals, P/L updates
+- **Responsive** layout (desktop & mobile)
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+## Local Development
+```bash
+# From repo root (this folder)
+npm install   # or pnpm i / yarn
 
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+# Start Angular dev server
+npm run start
+# App on http://localhost:4200
