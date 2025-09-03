@@ -27,3 +27,14 @@ npm install   # or pnpm i / yarn
 # Start Angular dev server
 npm run start
 # App on http://localhost:4200
+
+## Environment
+
+Create your env variables (never commit secrets):
+
+FINNHUB_API_KEY
+
+POLYGON_API_KEY
+
+MONGODB_URI (for Atlas)
+
