@@ -1,0 +1,36 @@
+/* You can add global styles to this file, and also import other style files */
+@import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
+@import "@fortawesome/fontawesome-free/css/all.min.css";
+
+
+
+/* Ensures the html and body take up the full viewport height */
+html, body {
+    height: 100%;
+    margin: 0;
+  }
+  
+  /* Fixing the navbar at the top */
+  app-navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000; /* Ensures the navbar stays above other content */
+  }
+  
+  /* Fixing the footer at the bottom */
+  app-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 1000;
+  }
+  
+  /* Styling for the main content area */
+  main {
+    margin-top: 60px; /* Adjust based on your navbar's height */
+    margin-bottom: 60px; /* Adjust based on your footer's height */
+    overflow-y: auto;
+    height: calc(100% - 120px); /* Adjust based on your navbar and footer's height */
+  }
+  

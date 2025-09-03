@@ -1,0 +1,43 @@
+<div class="container my-3 col-md-8">
+    <h2 class="mb-4">My Watchlist</h2>
+    <div *ngIf="isLoading" class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+    <div *ngIf="!isLoading && watchlist.length > 0">
+        <div *ngFor="let item of watchlist">
+            <div *ngFor="let stock of item.stock" class="card mb-3" (click)="navigateToSearchResult(stock.symbol)">
+                <div class="card-body">
+                    <span aria-label="Close" class="text-muted" style="cursor: pointer;" (click)="$event.stopPropagation(); removeStock(stock.symbol)">
+                        &times;
+                    </span>
+                    <div class="row align-items-center">
+                        <div class="col-6 col-md-8">
+                            <h1 class="card-title mb-0">{{ stock.symbol }}</h1>
+                            <p class="card-text">{{ stock.companyName }}</p>
+                        </div>
+                        <div class="col-6 col-md-4 text-right">
+                            <h1 class="mb-0" [ngStyle]="{ 'color': stock.quote.d > 0 ? 'green' : 'red' }">{{stock.quote.c }}</h1> <!-- Current price -->
+                            <p [ngClass]="{
+                                'text-success': stock.quote.d > 0,
+                                'text-danger': stock.quote.d < 0,
+                                'text-black': stock.quote.d === 0
+                                }">
+                                <i *ngIf="stock.quote.d > 0" class="bi bi-caret-up-fill"></i>
+                                <i *ngIf="stock.quote.d < 0" class="bi bi-caret-down-fill"></i>
+                                {{ stock.quote.d }} ({{ stock.quote.dp | number:'1.2-2' }}%)
+                            </p>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <ng-template [ngIf]="!isLoading && watchlist[0].stock.length === 0">
+                <div class="alert alert-warning text-center" role="alert">
+                    Currently you don't have any stock in your watchlist.
+                </div>
+            </ng-template>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,35 @@
+.navbar-custom {
+  background-color: #3a17e9;
+}
+  
+.navbar-custom .navbar-brand {
+  color: #ffffff;
+  font-size: 16px;
+  padding-right: 32px; 
+}
+  
+.nav-link {
+  display: block; 
+  text-align: center; 
+  border: 2px solid transparent; 
+}
+
+.navbar-custom .nav-item .nav-link {
+  color: #ffffff;
+  font-size: 16px; 
+  margin-right: 40px; 
+}
+
+.navbar-custom .nav-item .nav-link.active {
+  border: 2px solid white;
+  border-radius: 15px;
+}
+
+/* .navbar-custom {
+  background-color: #3a17e9;
+}
+
+.navbar-nav .nav-link.active {
+  border: 2px solid white;
+  border-radius: .375rem; 
+} */

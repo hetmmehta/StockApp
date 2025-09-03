@@ -1,0 +1,30 @@
+<div class="container my-3 d-flex flex-column align-items-center">
+  <h2 class="mb-3">STOCK SEARCH</h2>
+  <div class="input-group mb-3" style="width: 60%; max-width: 600px;">
+    <input type="text" style="border: none;" matInput [matAutocomplete]="auto" class="form-control" (input)="search($event) "
+    [(ngModel)]="searchQuery" (keyup.enter)="navigateToResults()" placeholder="Enter stock ticker symbol"
+    aria-label="Search stocks" >
+    <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
+      <mat-option *ngIf="isLoading">
+        <mat-spinner [diameter]="30"></mat-spinner> <!-- Spinner shown when loading -->
+      </mat-option>
+      <mat-option *ngFor="let stock of filteredStocks$ | async" (click)="navigateToResults(stock.displaySymbol)">
+        {{ stock.displaySymbol }} - {{ stock.description }}
+      </mat-option>
+    </mat-autocomplete>
+    <div class="input-group-append">
+      <button class="btn" type="button" (click)="navigateToResults()" style="border: none; background: transparent; color: #3a17e9">
+        <i class="bi bi-search"></i>
+      </button>
+      <button class="btn" type="button" (click)="clearSearch()" style="border: none; background: transparent;color: #3a17e9">
+        <i class="bi bi-x-lg"></i>
+      </button>      
+    </div>
+  </div>
+  <div *ngIf="isLoading" class="spinner-border" role="status">
+    <span class="sr-only">Loading...</span>
+  </div>
+  <div *ngIf="errorMessage" class="alert alert-danger w-75 text-center">
+    {{ errorMessage }}
+  </div>
+</div>

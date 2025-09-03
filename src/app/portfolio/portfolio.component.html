@@ -1,0 +1,144 @@
+<div class="container mt-3 col-md-8">
+  <div *ngIf="showAlert" class="alert text-center" [class.alert-success]="alertType === 'success'" [class.alert-danger]="alertType === 'danger'" role="alert">
+    {{ alertMessage }}
+    <span aria-label="Close" (click)="showAlert = false" style="cursor: pointer; float: right;">&times;</span>
+
+  </div>
+  <h1>My Portfolio</h1>
+  <!-- Spinner for loading state -->
+  <div *ngIf="isLoading" class="text-center">
+    <div class="spinner-border" role="status">
+      <span class="sr-only">Loading...</span>
+    </div>
+  </div>
+
+  <h3 *ngIf="!isLoading">Money in Wallet: {{ portfolio[0].Balance | currency:'USD':'symbol':'1.2-2' }}</h3>
+
+  <div *ngIf="!isLoading && (!portfolio || portfolio[0].Stocks.length === 0)" class="alert alert-warning text-center" role="alert">
+    Currently you don't have any stock.
+  </div>
+
+  <!-- Portfolio Data -->
+    <div *ngIf="portfolio && portfolio.length > 0; else emptyPortfolioTemplate">
+      <div *ngFor="let item of portfolio; let i = index" class="mb-4"> <!-- Added margin-bottom here -->
+        <div *ngFor="let stock of item.Stocks" class="card mb-4"> <!-- Added margin-bottom to each card -->
+          <div class="card-header d-flex align-items-baseline">
+            <h2 class="mb-0 mr-2">{{ stock.symbol.toUpperCase() }}</h2>
+            <h3 class="mb-0 text-secondary mx-2">{{ stock.name }}</h3>
+          </div>
+          
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3">
+                <p class="card-text">Quantity:</p>
+                <p class="card-text">Avg. Cost / Share:</p>
+                <p class="card-text">Total Cost:</p>
+              </div>
+              <div class="col-md-3">
+                <p class="card-text">{{ stock.quantity | number:'1.2-2' }}</p>
+                <p class="card-text">{{ stock.buyPrice | number:'1.2-2' }}</p>
+                <p class="card-text">{{ stock.totalCost | number:'1.2-2' }}</p>
+              </div>
+              <div class="col-md-3">
+                <p class="card-text">Change:</p>
+                <p class="card-text">Current Price:</p>
+                <p class="card-text">Market Value:</p>
+              </div>
+              <div class="col-md-3">
+                <p class="card-text" [ngClass]="{'text-success': stock.change >= 0, 'text-danger': stock.change < 0}">
+                  <i *ngIf="stock.change >= 0" class="bi bi-caret-up-fill"></i>
+                  <i *ngIf="stock.change < 0" class="bi bi-caret-down-fill"></i>
+                  {{ stock.change | number:'1.2-2' }}
+                </p>
+                <p class="card-text" [ngClass]="{'text-success': stock.change >= 0, 'text-danger': stock.change < 0}">
+                  {{ stock.currentPrice | number:'1.2-2' }}
+                </p>
+                <p class="card-text" [ngClass]="{'text-success': stock.change >= 0, 'text-danger': stock.change < 0}">
+                  {{ stock.marketValue | number:'1.2-2' }}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-primary" (click)="openBuyModal(buyModal,stock)">
+              Buy
+            </button>
+            <button type="button" class="btn btn-danger mx-2" (click)="openSellModal(sellModal,stock)">Sell</button>
+          </div>
+    
+          <!-- Buy Modal -->
+          <ng-template #buyModal let-modal>
+            <div class="modal-header">
+              <h3 class="modal-title font-weight-bold" style="font-size: 20px; font-weight: bold;">{{ selectedStock?.symbol
+                }}</h3>
+              <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')"
+                style="position: absolute; top: 15px; right: 5px;">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+    
+            <div class="modal-body">
+              <p class="mt-2">Current Price: {{ selectedStock?.quote?.c | currency:'USD':'symbol':'1.2-2' }}</p>
+              <p>Money in Wallet: {{ portfolio[0].Balance | currency:'USD':'symbol':'1.2-2' }}</p>
+              <div class="form-group row">
+                <label for="buyQuantity" class="col-form-label col-sm-2">Quantity:</label>
+                <div class="col-sm-10">
+                  <input type="number" class="form-control" id="buyQuantity" [(ngModel)]="buyQuantity"  min="0">
+                </div>
+              </div>
+              <div *ngIf="buyQuantity * selectedStock!.quote!.c > portfolio[0].Balance" class="text-danger mt-2">
+                Not enough money in wallet!
+              </div>
+              
+            </div>
+            <div class="modal-footer d-flex justify-content-between align-items-center">
+              <p>Total: {{ buyQuantity * selectedStock!.quote!.c | currency:'USD':'symbol':'1.2-2' }}</p>
+              <button type="button" class="btn btn-success" [disabled]="buyQuantity * selectedStock!.quote!.c > portfolio[0].Balance"
+                (click)="onBuy(stock.symbol, buyQuantity, buyQuantity * selectedStock!.quote!.c,stock.name)">Buy</button>
+            </div>
+          </ng-template>
+    
+          <!-- Sell Modal -->
+          <ng-template #sellModal let-modal>
+            <div class="modal-header">
+              <h3 class="modal-title font-weight-bold" style="font-size: 20px; font-weight: bold;">{{ selectedStock?.symbol
+                }}</h3>
+              <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')"
+                style="position: absolute; top: 15px; right: 5px;">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+    
+            <div class="modal-body">
+              <p class="mt-2">Current Price: {{ selectedStock?.quote?.c | currency:'USD':'symbol':'1.2-2' }}</p>
+              <p>Money in Wallet: {{ portfolio[0].Balance | currency:'USD':'symbol':'1.2-2' }}</p>
+              <div class="form-group row">
+                <label for="sellQuantity" class="col-sm-2 col-form-label">Quantity:</label>
+                <div class="col-sm-10">
+                  <input type="number" class="form-control" id="sellQuantity" [(ngModel)]="sellQuantity"  min="0">
+                  
+                </div>
+              </div>
+              <div *ngIf="sellQuantity > stock.quantity" class="text-danger mt-2">
+                You cannot sell the stocks that you don't have!
+              </div>
+            </div>
+            
+            <div class="modal-footer d-flex justify-content-between align-items-center">
+              <p>Total: {{ sellQuantity * selectedStock!.quote!.c | currency:'USD':'symbol':'1.2-2' }}</p>
+              <button type="button" class="btn btn-success" [disabled]="sellQuantity > stock.quantity"
+                (click)="onSell(stock.symbol, sellQuantity, sellQuantity * selectedStock!.quote!.c)">Sell</button>
+            </div>
+          </ng-template>
+    
+        </div>
+      </div>
+    </div>
+
+  <!-- Empty Portfolio Template -->
+  <ng-template #emptyPortfolioTemplate>
+    <div class="alert alert-warning" role="alert">
+      No portfolio data found.
+    </div>
+  </ng-template>
+</div>

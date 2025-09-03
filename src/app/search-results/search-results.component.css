@@ -1,0 +1,41 @@
+/* Search bar */
+.input-group {
+  display: flex;
+  border: 2px solid #3a17e9;
+  border-radius: 50px;
+  overflow: hidden; 
+  height: auto;
+} 
+
+.logo-size {
+  max-width: 100px; /* Adjust the width as needed */
+  height: auto; /* Maintain aspect ratio */
+}
+
+/* .bi-star{
+  font-size: 18px;
+} */
+
+.quote-details p{
+  margin-top: 0px;
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.company-details p{
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.label-bold {
+  font-weight: 500;
+  color: black;
+}
+
+/* input.form-control {
+  border: 1px solid #ced4da !important; 
+} */
+
+
+
+  

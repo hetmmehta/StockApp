@@ -1,0 +1,8 @@
+.input-group {
+  display: flex;
+  border: 2px solid #3a17e9;
+  border-radius: 50px;
+  overflow: hidden; 
+  height: auto;
+} 
+

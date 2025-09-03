@@ -1,0 +1,332 @@
+<!-- SEARCH BAR -->
+<div class="container my-3 d-flex flex-column align-items-center">
+  <h2 class="mb-3">STOCK SEARCH</h2>
+  <div class="input-group mb-3" style="width: 60%; max-width: 600px;">
+    <input type="text" style="border: none;" matInput [matAutocomplete]="auto" class="form-control" (input)="search($event)"
+    [(ngModel)]="searchQuery" (keyup.enter)="navigateToResults()" placeholder="Enter stock ticker symbol"
+    aria-label="Search stocks" >
+    <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn">
+      <mat-option *ngIf="isLoading">
+        <mat-spinner [diameter]="30"></mat-spinner> <!-- Spinner shown when loading -->
+      </mat-option>
+      <mat-option *ngFor="let stock of filteredStocks$ | async" (click)="navigateToResults(stock.displaySymbol)">
+        {{ stock.displaySymbol }} - {{ stock.description }}
+      </mat-option>
+    </mat-autocomplete>
+    <div class="input-group-append">
+      <button class="btn" type="button" (click)="navigateToResults()" style="border: none; background: transparent; color: #3a17e9">
+        <i class="bi bi-search"></i>
+      </button>
+      <button class="btn" type="button" (click)="clearSearch()" style="border: none; background: transparent;color: #3a17e9">
+        <i class="bi bi-x-lg"></i>
+      </button>      
+    </div>
+  </div>
+  <div *ngIf="isLoading" class="spinner-border" role="status">
+    <span class="sr-only">Loading...</span>
+  </div>
+  <div *ngIf="errorMessage" class="alert alert-danger w-75 text-center">
+    {{ errorMessage }}
+  </div>
+</div>
+
+
+<!-- STOCK DETAILS(CONTAINER 1) -->
+
+
+<div class="container d-flex justify-content-center">
+  <div class="row w-75">
+    <div *ngIf="errorMessage" class="alert alert-danger text-center">
+      {{ errorMessage }}
+    </div>
+    <div *ngIf="showAlert" class="alert  text-center"
+      [class]="{'alert-success': alertType === 'success', 'alert-danger': alertType === 'danger'}" role="alert">
+      {{ alertMessage }}
+      <span aria-label="Close" (click)="showAlert = false" style="cursor: pointer; float: right;">&times;</span>
+    </div>
+
+    <!-- Column 1 -->
+    <div class="col d-flex flex-column justify-content-center text-center">
+      <div *ngIf="companyProfile">
+        <h1 class="font-weight-bold" style="font-size: 30px; color:black;">{{ companyProfile.ticker }}
+          <button class="btn p-0" (click)="onStarClick(companyProfile.ticker,companyProfile.name)">
+            <i class="bi" [ngClass]="{'bi-star': !isStarFilled, 'bi-star-fill': isStarFilled}"
+              [style.color]="isStarFilled ? '#FFD700' : ''"></i>
+          </button>
+        </h1>
+        <p class="font-weight-bold text-secondary mt-0" style="font-size: 20px;">{{ companyProfile.name }}</p>
+        <p class="mt-o" style="font-size: 12px;">{{ companyProfile.exchange }}</p>
+        <div class="d-flex justify-content-center">
+          <button class="btn btn-success mt-2" (click)="openBuyModal(buyModal)">Buy</button>
+          <button *ngIf="isStockInPortfolio" class="btn btn-danger mt-2 mx-2" (click)="openSellModal(sellModal)">Sell</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buy Modal -->
+    <ng-template #buyModal let-modal>
+      <div class="modal-header">
+        <h3 class="modal-title font-weight-bold" style="font-size: 20px; font-weight: bold;">{{ selectedStock?.symbol
+          }}</h3>
+        <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')"
+          style="position: absolute; top: 15px; right: 5px;">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="mt-2">Current Price: {{ quoteData.c | currency:'USD':'symbol':'1.2-2' }}</p>
+        <p>Money in Wallet: {{ portfolio[0].Balance | currency:'USD':'symbol':'1.2-2' }}</p>
+        <div class="form-group row">
+          <label for="buyQuantity" class="col-form-label col-sm-2">Quantity:</label>
+          <div class="col-sm-10">
+            <input type="number" class="form-control" id="buyQuantity" [(ngModel)]="buyQuantity"
+              (change)="calculateBuyTotal()" min="0">
+          </div>
+        </div>
+        <div *ngIf="buyTotal > portfolio[0].Balance" class="text-danger mt-2">
+          Not enough money in wallet!
+        </div>
+
+      </div>
+      <div class="modal-footer d-flex justify-content-between align-items-center">
+        <p>Total: {{ buyQuantity * quoteData.c | currency:'USD':'symbol':'1.2-2' }}</p>
+        <button type="button" class="btn btn-success" [disabled]="buyTotal > portfolio[0].Balance"
+          (click)="onBuy(selectedStock!.symbol, buyQuantity, buyTotal, companyProfile.name)">Buy</button>
+      </div>
+    </ng-template>
+
+    <!-- Sell Modal -->
+    <ng-template #sellModal let-modal>
+      <div class="modal-header">
+        <h3 class="modal-title font-weight-bold" style="font-size: 20px; font-weight: bold;">{{ selectedStock?.symbol
+          }}</h3>
+        <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')"
+          style="position: absolute; top: 15px; right: 5px;">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="mt-2">Current Price: {{ quoteData.c | currency:'USD':'symbol':'1.2-2' }}</p>
+        <p>Money in Wallet: {{ portfolio[0].Balance | currency:'USD':'symbol':'1.2-2' }}</p>
+        <div class="form-group row">
+          <label for="sellQuantity" class="col-sm-2 col-form-label">Quantity:</label>
+          <div class="col-sm-10">
+            <input type="number" class="form-control" id="sellQuantity" [(ngModel)]="sellQuantity"
+              (change)="calculateSellTotal()" min="0">
+
+          </div>
+        </div>
+        <div *ngIf="sellQuantity > stockQuantity" class="text-danger mt-2">
+          You cannot sell the stocks that you don't have!
+        </div>
+      </div>
+
+      <div class="modal-footer d-flex justify-content-between align-items-center">
+        <p>Total: {{ sellQuantity * quoteData.c | currency:'USD':'symbol':'1.2-2' }}</p>
+        <button type="button" class="btn btn-success" [disabled]="sellQuantity > stockQuantity"
+          (click)="onSell(companyProfile.ticker, sellQuantity, sellTotal)">Sell</button>
+      </div>
+    </ng-template>
+
+    <!-- Column 2 -->
+    <div class="col d-flex justify-content-center">
+      <div *ngIf="companyProfile">
+        <img [src]="companyProfile.logo" alt="Company Logo" class="img-fluid logo-size">
+      </div>
+    </div>
+
+    <!-- Column 3 -->
+    <div class="col d-flex flex-column text-center">
+      <div *ngIf="quoteData">
+        <h1 class="font-weight-bold mt-0 p-0" style="font-size: 30px;"
+          [ngStyle]="{ 'color': quoteData.d > 0 ? 'green' : 'red' }">{{ quoteData.c | number:'1.2-2' }}</h1>
+        <p class="font-weight-bold mt-0" style="font-size: 20px;"
+          [ngStyle]="{ 'color': quoteData.d > 0 ? 'green' : 'red' }">
+          <i *ngIf="quoteData.d > 0" class="bi bi-caret-up-fill"></i>
+          <i *ngIf="quoteData.d < 0" class="bi bi-caret-down-fill"></i>
+          {{ quoteData.d | number:'1.2-2' }} ({{ quoteData.dp | number:'1.2-2' }}%)
+        </p>
+      </div>
+      <p class="mt-0" style="font-size: 12px;">{{ getCurrentDateTime() }}</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="col-12 text-center">
+  <div *ngIf="quoteData" [ngStyle]="{'color': marketColor}" class="my-3 font-weight-bold">
+    {{ marketStatus }}
+  </div>
+</div>
+
+<!-- Container 2 -->
+<div class="container d-flex justify-content-center">
+  <mat-tab-group class="w-75 mt-3">
+    <!-- SUMMARY -->
+    <mat-tab label="Summary">
+      <div class="row mt-3">
+        <!-- Column 1 -->
+        <div class="col-md-6 d-flex flex-column">
+          <div class="row">
+            <div class="col-sm d-flex flex-column justify-content-center text-center">
+              <div *ngIf="quoteData" class="quote-details">
+                <p><span class="label-bold">High Price:</span> {{ quoteData.h | number:'1.2-2' }}</p>
+                <p><span class="label-bold">Low Price:</span> {{ quoteData.l | number:'1.2-2' }}</p>
+                <p><span class="label-bold">Open Price:</span> {{ quoteData.o | number:'1.2-2' }}</p>
+                <p><span class="label-bold">Prev.Close:</span> {{ quoteData.pc | number:'1.2-2' }}</p>
+              </div>
+            </div>
+            <div class="col-sm d-flex flex-column justify-content-center"></div>
+          </div>
+
+
+          <p [style.textDecoration]="'underline'" [style.fontSize.px]="20"
+            class="d-flex flex-column align-items-center my-3">About the company</p>
+
+          <div *ngIf="companyProfile" class="company-details d-flex flex-column align-items-center my-3">
+            <p><span class="label-bold">IPO start date:</span> {{ companyProfile.ipo }}</p>
+            <p><span class="label-bold">Industry:</span> {{ companyProfile.finnhubIndustry }}</p>
+            <p><span class="label-bold">Webpage: </span> <a href="{{ companyProfile.weburl }}" target="_blank">{{
+                companyProfile.weburl }}</a></p>
+
+            <div *ngIf="companyPeers" class="company-details d-flex flex-column align-items-center my-3">
+              <p><span class="label-bold">Company Peers:</span></p>
+              <ul class="list-unstyled d-flex flex-row flex-wrap justify-content-center">
+                <li *ngFor="let peer of companyPeers; let isLast=last">
+                  <a [routerLink]="['/search', peer]" routerLinkActive="active">{{ peer }}</a>{{!isLast ? ',' : ''}}
+                </li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+        <!-- Column 2 -->
+        <div class="col-md-6 mb-5 d-flex flex-column">
+          <highcharts-chart [Highcharts]="Highcharts" [options]="summaryChartOptions"
+            style="width: 100%; height: 350px; display: block;"></highcharts-chart>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- Top News -->
+    <mat-tab label="Top News">
+      <div class="container">
+        <div class="row mt-3">
+          <div class="col-md-6" *ngFor="let newsItem of companyNews">
+            <ng-container *ngIf="newsItem.image">
+              <div class="card mb-4" style="cursor: pointer;" (click)="openNewsModal(newsItem, content)">
+                <div class="row no-gutters">
+                  <div class="col-md-4 d-flex justify-content-center align-items-center" style="min-height: 100px;">
+                    <img src="{{ newsItem.image }}" class="card-img" alt="{{ newsItem.title }}"
+                      style="height: 80px; width: 120px; object-fit: cover;">
+                  </div>
+                  <div class="col-md-8">
+                    <div class="card-body">
+                      <h5 class="card-title text-center">{{ newsItem.headline }}</h5>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- News Modal -->
+    <ng-template #content let-modal>
+      <div class="modal-header d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="modal-title font-weight-bold fs-3 mb-0">{{ selectedNewsItem.source }}</h3>
+          <div class="text-muted mt-0">{{ selectedNewsItem.datetime * 1000 | date:'medium' }}</div>
+        </div>
+        <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="mt-2 mb-0 font-weight-bold fs-5">{{ selectedNewsItem.headline }}</p>
+        <p class="text-muted mt-0 mb-0">{{ selectedNewsItem.summary }}</p>
+        <span class="text-secondary mt-0">For more details, click </span>
+        <a href="{{ selectedNewsItem.url }}" target="_blank">here</a>
+      </div>
+      <div class="modal-footer">
+        <div class="d-flex flex-column align-items-start w-100">
+          <p class="text-muted">Share</p>
+          <div class="d-flex">
+            <a href="https://twitter.com/intent/tweet?text={{ selectedNewsItem?.headline }}&url={{ selectedNewsItem?.url }}"
+              target="_blank" class="me-2">
+              <i class="bi bi-twitter-x fs-2 text-dark"></i>
+            </a>
+            <a href="https://www.facebook.com/sharer/sharer.php?u={{ selectedNewsItem?.url }}" target="_blank">
+              <i class="bi bi-facebook fs-2"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </ng-template>
+
+    <!-- Charts -->
+    <mat-tab label="Charts">
+      <div class="p-0">
+        <div class="row no-gutters">
+          <div class="col-12">
+            <highcharts-chart [Highcharts]="Highcharts" [options]="historicalChartOptions"
+              style="width: 100%; height: 400px; display: block;"></highcharts-chart>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- Insights -->
+    <mat-tab label="Insights">
+      <div class="container mt-4 col-6 justify-content-center">
+        <h5 class="text-center" style="font-size: 1.5rem;">Insider Sentiments</h5>
+
+        <div class="table-responsive mx-auto">
+          <table class="table text-center">
+            <thead>
+              <tr>
+                <th scope="col" class="w-33">{{ companyProfile?.name }}</th>
+                <th scope="col" class="w-33">MSPR</th>
+                <th scope="col" class="w-33">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="w-33">Total</td>
+                <td class="w-33">{{ insiderSentiments.totalMSPR }}</td>
+                <td class="w-33">{{ insiderSentiments.totalChange }}</td>
+              </tr>
+              <tr>
+                <td class="w-33">Positive</td>
+                <td class="w-33">{{ insiderSentiments.positiveMSPR }}</td>
+                <td class="w-33">{{ insiderSentiments.positiveChange }}</td>
+              </tr>
+              <tr>
+                <td class="w-33">Negative</td>
+                <td class="w-33">{{ insiderSentiments.negativeMSPR }}</td>
+                <td class="w-33">{{ insiderSentiments.negativeChange }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="row mt-4">
+        <div class="col-md-6 mt-2 mb-2">
+          <highcharts-chart [Highcharts]="Highcharts" [options]="recommendationChartOptions"
+            style="width: 100%; height: 400px; display: block;"></highcharts-chart>
+        </div>
+        <div class="col-md-6 mt-2 mb-2">
+          <highcharts-chart [Highcharts]="Highcharts" [options]="earningsChartOptions"
+            style="width: 100%; height: 400px; display: block;"></highcharts-chart>
+        </div>
+      </div>
+
+    </mat-tab>
+
+  </mat-tab-group>
+</div>
