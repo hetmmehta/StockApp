@@ -19,6 +19,32 @@ Single-page Angular app with a minimal Node/Express backend (proxy) that serves 
 - **Portfolio** (MongoDB): wallet, buy/sell modals, P/L updates
 - **Responsive** layout (desktop & mobile)
 
+## 📸 Preview
+
+<p align="center">
+  <img src="./screenshots/home.png" width="45%"/>
+  <img src="./screenshots/autocomplete.png" width="45%"/>
+</p>
+<p align="center">
+  <img src="./screenshots/summary_tab.png" width="45%"/>
+  <img src="./screenshots/news_tab.png" width="45%"/>
+</p>
+<p align="center">
+  <img src="./screenshots/charts_tab.png" width="45%"/>
+  <img src="./screenshots/insights_tab.png" width="45%"/>
+</p>
+<p align="center">
+  <img src="./screenshots/watchlist.png" width="45%"/>
+  <img src="./screenshots/portfolio.png" width="45%"/>
+</p>
+<p align="center">
+  <img src="./screenshots/buy_modal.png" width="45%"/>
+  <img src="./screenshots/sell_modal.png" width="45%"/>
+</p>
+<p align="center">
+  <img src="./screenshots/mobile_view.png" width="45%"/>
+</p>
+
 ## Local Development
 ```bash
 # From repo root (this folder)
