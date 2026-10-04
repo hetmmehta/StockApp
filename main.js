@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { createMarketClient } = require('./server/market');
+const { createMarketClient, normalizeSymbol } = require('./server/market');
 const { createMongoStore } = require('./server/store');
 const { startQuoteRefreshJob, DEFAULT_INTERVAL_MS } = require('./server/refreshJob');
 
@@ -38,6 +38,18 @@ async function attachQuotes(market, docs, stocksField) {
     }
   }
   return docs;
+}
+
+function isPositiveInteger(value) {
+  return Number.isInteger(value) && value > 0;
+}
+
+// Current price for a symbol from the cached quote, or null if unavailable
+// (Finnhub returns c = 0 for unknown symbols).
+async function currentPrice(market, symbol) {
+  const quote = await market.quote(symbol);
+  const price = Number(quote && quote.c);
+  return price > 0 ? price : null;
 }
 
 // Wrap a market lookup that takes ?symbol= into a route handler.
@@ -88,21 +100,41 @@ function createApp({ market, store }) {
     }
   });
 
+  // Buy/sell are priced server-side from the (cached) current quote; any price
+  // sent by the client is ignored.
   app.post('/api/portfolio/buy', async (req, res) => {
     try {
-      const { stockSymbol, buyQuantity, buyPrice, stockName } = req.body;
+      const { stockSymbol, buyQuantity, stockName } = req.body;
+      const symbol = normalizeSymbol(stockSymbol);
+      const quantity = Number(buyQuantity);
+      if (!symbol || !isPositiveInteger(quantity)) {
+        res.status(400).json({ message: 'A stock symbol and a positive whole number of shares are required.' });
+        return;
+      }
+
       const portfolio = await store.getPortfolio();
       if (!portfolio) {
         res.status(404).json({ error: 'Portfolio not found' });
         return;
       }
-      await store.buy(portfolio, {
-        symbol: stockSymbol,
-        name: stockName,
-        quantity: buyQuantity,
-        totalCost: buyPrice,
-      });
-      res.json({ message: 'Portfolio updated successfully' });
+
+      const price = await currentPrice(market, symbol);
+      if (price === null) {
+        res.status(400).json({ message: `No current price available for ${symbol}.` });
+        return;
+      }
+
+      const totalCost = price * quantity;
+      if (totalCost > portfolio.Balance) {
+        res.status(400).json({
+          message: `Insufficient balance: buying ${quantity} ${symbol} costs $${totalCost.toFixed(2)} ` +
+            `but the wallet has $${Number(portfolio.Balance).toFixed(2)}.`,
+        });
+        return;
+      }
+
+      await store.buy(portfolio, { symbol, name: stockName, quantity, totalCost });
+      res.json({ message: 'Portfolio updated successfully', price, totalCost });
     } catch (error) {
       console.error('Error processing stock purchase:', error.message);
       res.status(500).json({ error: 'Internal Server Error' });
@@ -111,19 +143,37 @@ function createApp({ market, store }) {
 
   app.post('/api/portfolio/sell', async (req, res) => {
     try {
-      const { stockSymbol, sellQuantity, sellPrice } = req.body;
+      const { stockSymbol, sellQuantity } = req.body;
+      const symbol = normalizeSymbol(stockSymbol);
+      const quantity = Number(sellQuantity);
+      if (!symbol || !isPositiveInteger(quantity)) {
+        res.status(400).json({ message: 'A stock symbol and a positive whole number of shares are required.' });
+        return;
+      }
+
       const portfolio = await store.getPortfolio();
       if (!portfolio) {
         res.status(404).json({ error: 'Portfolio not found' });
         return;
       }
-      const stock = (portfolio.Stocks || []).find((s) => s.symbol === stockSymbol);
-      if (!stock || stock.quantity < sellQuantity) {
-        res.status(400).json({ message: 'Not enough stock to sell.' });
+
+      const stock = (portfolio.Stocks || []).find((s) => s.symbol === symbol);
+      if (!stock || stock.quantity < quantity) {
+        res.status(400).json({
+          message: `Not enough stock to sell: you hold ${stock ? stock.quantity : 0} ${symbol}.`,
+        });
         return;
       }
-      await store.sell(portfolio, { symbol: stockSymbol, quantity: sellQuantity, proceeds: sellPrice });
-      res.json({ message: 'Stock sold successfully' });
+
+      const price = await currentPrice(market, symbol);
+      if (price === null) {
+        res.status(400).json({ message: `No current price available for ${symbol}.` });
+        return;
+      }
+
+      const proceeds = price * quantity;
+      await store.sell(portfolio, { symbol, quantity, proceeds });
+      res.json({ message: 'Stock sold successfully', price, proceeds });
     } catch (error) {
       console.error('Error selling stock in portfolio:', error.message);
       res.status(500).json({ error: 'Internal Server Error' });

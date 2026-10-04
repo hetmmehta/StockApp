@@ -136,6 +136,7 @@ export class PortfolioComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error selling stock:', error);
+        this.showDangerAlert(error.error?.message || 'Could not complete the trade.');
       },
     });
   }
@@ -173,6 +174,7 @@ export class PortfolioComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error buying stock:', error);
+        this.showDangerAlert(error.error?.message || 'Could not complete the trade.');
       },
     });
   }

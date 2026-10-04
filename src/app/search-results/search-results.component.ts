@@ -371,7 +371,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error buying stock:', error);
         this.showAlert = true;
-        this.alertMessage = 'Error occurred while purchasing stock.';
+        this.alertMessage = error.error?.message || 'Error occurred while purchasing stock.';
         this.alertType = 'danger';
         setTimeout(() => this.showAlert = false, 5000); 
       },
@@ -420,6 +420,10 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error selling stock:', error);
+        this.showAlert = true;
+        this.alertMessage = error.error?.message || 'Error occurred while selling stock.';
+        this.alertType = 'danger';
+        setTimeout(() => this.showAlert = false, 5000);
       },
     });
   }
