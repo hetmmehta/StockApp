@@ -1,418 +1,217 @@
 const express = require('express');
-const axios = require('axios');
 const cors = require('cors');
 require('dotenv').config();
 
-const app = express();
-
-// Middleware to parse JSON bodies and handle CORS
-app.use(express.json());
-app.use(cors());
+const { createMarketClient } = require('./server/market');
+const { createMongoStore } = require('./server/store');
+const { startQuoteRefreshJob, DEFAULT_INTERVAL_MS } = require('./server/refreshJob');
 
 // Configuration (loaded from environment / .env)
 const REQUIRED_ENV = ['FINNHUB_API_KEY', 'POLYGON_API_KEY', 'MONGODB_URI'];
-const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]);
-if (missingEnv.length > 0) {
-  console.error(`Missing required environment variables: ${missingEnv.join(', ')}. Copy .env.example to .env and fill them in.`);
-  process.exit(1);
-}
 
-const finnhubApiKey = process.env.FINNHUB_API_KEY;
-const polygonApiKey = process.env.POLYGON_API_KEY;
-const mongoUri = process.env.MONGODB_URI;
-const mongoDbName = process.env.MONGO_DB_NAME || 'stockapp';
-
-
-// Helper function to check if the market is open
-function isMarketOpen(lastQuoteTimestamp) {
-  const currentTime = new Date().getTime();
-  const lastQuoteTime = new Date(lastQuoteTimestamp * 1000);
-  const fiveMinutes = 300000;
-  return (currentTime - lastQuoteTime.getTime()) <= fiveMinutes;
-}
-
-// Route to get company profile
-app.get('/api/company-profile', async (req, res) => {
-  const { symbol } = req.query;
-  const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Route to get quote data
-app.get('/api/quote', async (req, res) => {
-  const { symbol } = req.query;
-  const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Route to get recommendation trends
-app.get('/api/recommendation-trends', async (req, res) => {
-  const { symbol } = req.query;
-  const url = `https://finnhub.io/api/v1/stock/recommendation?symbol=${symbol}&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Route to get insider sentiment
-app.get('/api/insider-sentiment', async (req, res) => {
-  const { symbol } = req.query;
-  const url = `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=2022-01-01&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Route to get company peers
-app.get('/api/company-peers', async (req, res) => {
-  const { symbol } = req.query;
-  const url = `https://finnhub.io/api/v1/stock/peers?symbol=${symbol}&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Route to get company earnings
-app.get('/api/company-earnings', async (req, res) => {
-  const { symbol } = req.query;
-  const url = `https://finnhub.io/api/v1/stock/earnings?symbol=${symbol}&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-// Route for autocomplete search feature
-app.get('/api/search', async (req, res) => {
-  const { symbol } = req.query;
-  const url = `https://finnhub.io/api/v1/search?q=${symbol}&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    const filteredResult = response.data.result.filter(item => 
-      item.type === 'Common Stock' && !item.symbol.includes('.')
+function loadConfig(env = process.env) {
+  const missingEnv = REQUIRED_ENV.filter((name) => !env[name]);
+  if (missingEnv.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missingEnv.join(', ')}. ` +
+      'Copy .env.example to .env and fill them in.'
     );
-
-    res.json(filteredResult);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
-});
-
-const moment = require('moment');
-
-function formatDate(date) {
-  return moment(date).format('YYYY-MM-DD');
+  return {
+    finnhubApiKey: env.FINNHUB_API_KEY,
+    polygonApiKey: env.POLYGON_API_KEY,
+    mongoUri: env.MONGODB_URI,
+    mongoDbName: env.MONGO_DB_NAME || 'stockapp',
+    port: Number(env.PORT) || 3000,
+    quoteRefreshMs: Number(env.QUOTE_REFRESH_MS) || DEFAULT_INTERVAL_MS,
+  };
 }
 
-// Route to get company news
-app.get('/api/company-news', async (req, res) => {
-  const { symbol } = req.query;
-  
-  // Calculate 'from' and 'to' dates
-  const to = moment().format('YYYY-MM-DD'); // Current date
-  const from = moment().subtract(30, 'days').format('YYYY-MM-DD'); // 30 days before the current date
-  
-  const url = `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${from}&to=${to}&token=${finnhubApiKey}`;
-  
-  try {
-    const response = await axios.get(url);
-    // Filter news items that have all the required fields
-    const filteredNews = response.data.filter(newsItem => 
-      newsItem.headline && newsItem.image && newsItem.source && 
-      newsItem.datetime && newsItem.summary && newsItem.url
-    );
-    // Limit the results to the top 20 news items
-    const companyNews = filteredNews.slice(0, 20);
-    res.json(companyNews);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Route to get historical data from Polygon.io
-app.get('/api/historical-data', async (req, res) => {
-  const { symbol } = req.query;
-  
-  // Define your date range here
-  const toDate = new Date();
-  const fromDate = new Date(toDate.getFullYear(), toDate.getMonth() - 6, toDate.getDate() - 2);
-
-  const formattedtodate = toDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-  const formattedfromdate = fromDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-
-  const url = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/day/${formattedfromdate}/${formattedtodate}?adjusted=true&sort=asc&apiKey=${polygonApiKey}`;
-  try {
-    const response = await axios.get(url);
-    res.json(response.data.results);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Route to get historical data from Polygon.io
-app.get('/api/summary-chart', async (req, res) => {
-  const { symbol, lastQuoteTimestamp } = req.query;
-
-  try {
-    const tooDate = new Date();
-    const frommDate = new Date();
-
-    // Determine if market is open based on lastQuoteTimestamp
-    const marketOpen = isMarketOpen(lastQuoteTimestamp);
-
-    if (marketOpen) {
-      frommDate.setDate(frommDate.getDate() - 1);
-    } else {
-      frommDate.setDate(frommDate.getDate() - 2);
-      tooDate.setDate(tooDate.getDate() - 1);
+// Attach the (cached) latest quote to every stock in a list of documents.
+// Quotes for all symbols are looked up in parallel.
+async function attachQuotes(market, docs, stocksField) {
+  const symbols = docs.flatMap((doc) => (doc[stocksField] || []).map((s) => s.symbol));
+  const quotes = await market.quotes(symbols);
+  for (const doc of docs) {
+    for (const stock of doc[stocksField] || []) {
+      stock.quote = quotes.get(String(stock.symbol).toUpperCase());
     }
-
-    
-    const fromDateStr = frommDate.toISOString().split('T')[0];
-    const toDateStr = tooDate.toISOString().split('T')[0];
-
-    const url = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/hour/${fromDateStr}/${toDateStr}?adjusted=true&sort=asc&apiKey=${polygonApiKey}`;
-
-    const response = await axios.get(url);
-    res.json(response.data.results);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
-});
+  return docs;
+}
 
-// DATABASE
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(mongoUri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-client.connect();
-const database = client.db(mongoDbName);
-
-app.get('/api/portfolio', async (req, res) => {
-  try {
-    const collection = database.collection('portfolio');
-    const portfolios = await collection.find({}).toArray();
-
-    for (let portfolio of portfolios) {
-      for (let stock of portfolio.Stocks) {
-        const quoteResponse = await axios.get(`https://finnhub.io/api/v1/quote?symbol=${stock.symbol}&token=${finnhubApiKey}`);
-        stock.quote = quoteResponse.data;
-      }
+// Wrap a market lookup that takes ?symbol= into a route handler.
+function symbolRoute(lookup) {
+  return async (req, res) => {
+    const { symbol } = req.query;
+    if (!symbol) {
+      res.status(400).json({ error: 'Query parameter "symbol" is required.' });
+      return;
     }
-    res.json(portfolios);
-  } catch (error) {
-    console.error("Error retrieving portfolio from MongoDB", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.post('/api/portfolio/buy', async (req, res) => {
-  try {
-    const { stockSymbol, buyQuantity, buyPrice,stockName } = req.body;
-    const collection = database.collection('portfolio');
-
-    const portfolio = await collection.findOne({});
-
-    if (portfolio) {
-      let stock = portfolio.Stocks.find(s => s.symbol === stockSymbol);
-
-      if (stock) {
-        const totalQuantity = stock.quantity + buyQuantity;
-        const totalCost = stock.buyPrice * stock.quantity + buyPrice;
-        const averageCostPerShare = totalCost / totalQuantity;
-
-        await collection.updateOne(
-          { _id: portfolio._id, "Stocks.symbol": stockSymbol },
-          {
-            $set: {
-              "Stocks.$.quantity": totalQuantity,
-              "Stocks.$.buyPrice": averageCostPerShare,
-            },
-            $inc: {
-              "Balance": -(buyPrice)
-            }
-          }
-        );
-      } else {
-        // Stock doesn't exist, add it
-        await collection.updateOne(
-          { _id: portfolio._id },
-          {
-            $push: {
-              "Stocks": {
-                symbol: stockSymbol,
-                quantity: buyQuantity,
-                buyPrice: buyPrice/buyQuantity, 
-                name: stockName, 
-              }
-            },
-            $inc: {
-              "Balance": -(buyPrice)
-            }
-          }
-        );
-      }
-      res.json({ message: "Portfolio updated successfully" });
-    } else {
-      // Handle case where no portfolio exists
-      res.status(404).json({ error: "Portfolio not found" });
+    try {
+      res.json(await lookup(symbol, req.query));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-  } catch (error) {
-    console.error("Error processing stock purchase", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+  };
+}
 
+function createApp({ market, store }) {
+  const app = express();
 
-app.post('/api/portfolio/sell', async (req, res) => {
-  try {
-    const { stockSymbol, sellQuantity, sellPrice } = req.body;
-    const collection = database.collection('portfolio');
+  // Middleware to parse JSON bodies and handle CORS
+  app.use(express.json());
+  app.use(cors());
 
-    const portfolio = await collection.findOne({ "Stocks.symbol": stockSymbol });
+  // Market data (proxied to Finnhub / Polygon through the TTL cache)
+  app.get('/api/company-profile', symbolRoute((symbol) => market.profile(symbol)));
+  app.get('/api/quote', symbolRoute((symbol) => market.quote(symbol)));
+  app.get('/api/recommendation-trends', symbolRoute((symbol) => market.recommendations(symbol)));
+  app.get('/api/insider-sentiment', symbolRoute((symbol) => market.insiderSentiment(symbol)));
+  app.get('/api/company-peers', symbolRoute((symbol) => market.peers(symbol)));
+  app.get('/api/company-earnings', symbolRoute((symbol) => market.earnings(symbol)));
+  app.get('/api/search', symbolRoute((symbol) => market.search(symbol)));
+  app.get('/api/company-news', symbolRoute((symbol) => market.news(symbol)));
+  app.get('/api/historical-data', symbolRoute((symbol) => market.historical(symbol)));
+  app.get('/api/summary-chart', symbolRoute(
+    (symbol, query) => market.summaryChart(symbol, query.lastQuoteTimestamp)
+  ));
 
-    if (portfolio) {
-      let stock = portfolio.Stocks.find(s => s.symbol === stockSymbol);
-      if (!stock || stock.quantity < sellQuantity) {
-        res.status(400).json({ message: "Not enough stock to sell." });
+  // Portfolio
+  app.get('/api/portfolio', async (req, res) => {
+    try {
+      const portfolios = await store.listPortfolios();
+      res.json(await attachQuotes(market, portfolios, 'Stocks'));
+    } catch (error) {
+      console.error('Error retrieving portfolio:', error.message);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  app.post('/api/portfolio/buy', async (req, res) => {
+    try {
+      const { stockSymbol, buyQuantity, buyPrice, stockName } = req.body;
+      const portfolio = await store.getPortfolio();
+      if (!portfolio) {
+        res.status(404).json({ error: 'Portfolio not found' });
         return;
       }
-      
-      const newQuantity = stock.quantity - sellQuantity;
-      const sellTotal =  sellPrice;
-      
-      if (newQuantity > 0) {
-        await collection.updateOne(
-          { _id: portfolio._id, "Stocks.symbol": stockSymbol },
-          {
-            $set: { "Stocks.$.quantity": newQuantity },
-            $inc: { "Balance": sellTotal }
-          }
-        );
+      await store.buy(portfolio, {
+        symbol: stockSymbol,
+        name: stockName,
+        quantity: buyQuantity,
+        totalCost: buyPrice,
+      });
+      res.json({ message: 'Portfolio updated successfully' });
+    } catch (error) {
+      console.error('Error processing stock purchase:', error.message);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  app.post('/api/portfolio/sell', async (req, res) => {
+    try {
+      const { stockSymbol, sellQuantity, sellPrice } = req.body;
+      const portfolio = await store.getPortfolio();
+      if (!portfolio) {
+        res.status(404).json({ error: 'Portfolio not found' });
+        return;
+      }
+      const stock = (portfolio.Stocks || []).find((s) => s.symbol === stockSymbol);
+      if (!stock || stock.quantity < sellQuantity) {
+        res.status(400).json({ message: 'Not enough stock to sell.' });
+        return;
+      }
+      await store.sell(portfolio, { symbol: stockSymbol, quantity: sellQuantity, proceeds: sellPrice });
+      res.json({ message: 'Stock sold successfully' });
+    } catch (error) {
+      console.error('Error selling stock in portfolio:', error.message);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  // Watchlist
+  app.get('/api/watchlist', async (req, res) => {
+    try {
+      const watchlists = await store.listWatchlists();
+      res.json(await attachQuotes(market, watchlists, 'stock'));
+    } catch (error) {
+      console.error('Error retrieving watchlist:', error.message);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  app.post('/api/watchlist', async (req, res) => {
+    const { symbol, companyName } = req.body;
+    if (!symbol) {
+      res.status(400).json({ error: 'Field "symbol" is required.' });
+      return;
+    }
+    try {
+      const changed = await store.addToWatchlist(symbol, companyName);
+      res.json({ message: changed ? 'Stock added to watchlist.' : 'Stock is already in the watchlist.' });
+    } catch (error) {
+      console.error('Failed to add stock to watchlist:', error.message);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  app.delete('/api/watchlist/:symbol', async (req, res) => {
+    try {
+      const removed = await store.removeFromWatchlist(req.params.symbol);
+      if (removed) {
+        res.json({ message: 'Stock removed from watchlist.' });
       } else {
-        await collection.updateOne(
-          { _id: portfolio._id },
-          {
-            $pull: { Stocks: { symbol: stockSymbol } },
-            $inc: { "Balance": sellTotal }
-          }
-        );
+        res.status(404).json({ message: 'Stock not found in watchlist.' });
       }
-
-      res.json({ message: "Stock sold successfully" });
-    } else {
-      res.status(404).json({ error: "Portfolio not found" });
+    } catch (error) {
+      console.error('Error removing stock from watchlist:', error.message);
+      res.status(500).json({ error: 'Internal Server Error' });
     }
-  } catch (error) {
-    console.error("Error selling stock in portfolio", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  } 
-});
+  });
 
+  return app;
+}
 
+async function start() {
+  const config = loadConfig();
 
-app.get('/api/watchlist', async (req, res) => {
-  try {
-    const collection = database.collection('watchlist');
-    const watchlist = await collection.find({}).toArray();
+  const { MongoClient, ServerApiVersion } = require('mongodb');
+  const client = new MongoClient(config.mongoUri, {
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+  });
+  await client.connect();
 
-    for (let item of watchlist) {
-      for (let stock of item.stock) {
-        const quoteResponse = await axios.get(`https://finnhub.io/api/v1/quote?symbol=${stock.symbol}&token=${finnhubApiKey}`);
-        stock.quote = quoteResponse.data;
-      }
-    }
+  const store = createMongoStore(client.db(config.mongoDbName));
+  const market = createMarketClient({
+    finnhubApiKey: config.finnhubApiKey,
+    polygonApiKey: config.polygonApiKey,
+  });
+  const app = createApp({ market, store });
+  const refreshJob = startQuoteRefreshJob({ market, store, intervalMs: config.quoteRefreshMs });
 
-    res.json(watchlist);
-  } catch (error) {
-    console.error("Error retrieving watchlist from MongoDB", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  } 
-});
+  const server = app.listen(config.port, () => {
+    console.log(`Server is running on port ${config.port}`);
+  });
 
-app.delete('/api/watchlist/:symbol', async (req, res) => {
-  const { id, symbol } = req.params;
+  const shutdown = () => {
+    refreshJob.stop();
+    server.close(() => client.close().finally(() => process.exit(0)));
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
 
-  try {
+// Only start listening when run directly (`node main.js`), not when required by tests.
+if (require.main === module) {
+  start().catch((error) => {
+    console.error(`Failed to start server: ${error.message}`);
+    process.exit(1);
+  });
+}
 
-    const collection = database.collection('watchlist');
-
-    const result = await collection.updateOne(
-      { }, 
-      { $pull: { stock: { symbol: symbol } } }
-    );
-
-    if (result.modifiedCount === 1) {
-      res.json({ message: 'Stock removed from watchlist.' });
-    } else {
-      res.status(404).json({ message: 'Stock not found in watchlist.' });
-    }
-  } catch (error) {
-    console.error('Error removing stock from watchlist:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  } 
-});
-
-app.post('/api/watchlist', async (req, res) => {
-  const { symbol, companyName } = req.body;
-
-  try {
-    const collection = database.collection('watchlist');
-    const updateResult = await collection.updateOne(
-      { }, 
-      { $addToSet: { stock: { symbol, companyName } } }, 
-      { upsert: true }
-    );
-
-    if (updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0) {
-      res.status(200).send({ message: 'Stock added to watchlist.' });
-    } else {
-      res.status(304).send({ message: 'No changes made to the watchlist.' });
-    }
-  } catch (error) {
-    console.error('Failed to add stock to watchlist:', error);
-    res.status(500).send({ error: 'Internal Server Error' });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+module.exports = { createApp, loadConfig, attachQuotes };
