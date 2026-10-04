@@ -1,5 +1,5 @@
 {
-  "name": "hw3-app",
+  "name": "stockapp",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -9,7 +9,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:server": "node --test test/*.test.js",
-    "serve:ssr:hw3-app": "node dist/hw3-app/server/server.mjs"
+    "serve:ssr:stockapp": "node dist/stockapp/server/server.mjs"
   },
   "private": true,
   "dependencies": {
