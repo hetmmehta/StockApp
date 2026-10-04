@@ -473,7 +473,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
       };
       console.log(payload)
 
-      this.http.post(`${environment.apiUrl}/watchlist/post`, payload).subscribe({
+      this.http.post(`${environment.apiUrl}/watchlist`, payload).subscribe({
         next: () => console.log('Stock added to watchlist'),
         error: (error) => console.error('Error adding stock to watchlist:', error)
       });

@@ -348,7 +348,7 @@ app.post('/api/portfolio/sell', async (req, res) => {
 
 
 
-app.get('/watchlist', async (req, res) => {
+app.get('/api/watchlist', async (req, res) => {
   try {
     const collection = database.collection('watchlist');
     const watchlist = await collection.find({}).toArray();
@@ -367,7 +367,7 @@ app.get('/watchlist', async (req, res) => {
   } 
 });
 
-app.delete('/watchlist/:symbol', async (req, res) => {
+app.delete('/api/watchlist/:symbol', async (req, res) => {
   const { id, symbol } = req.params;
 
   try {
@@ -390,7 +390,7 @@ app.delete('/watchlist/:symbol', async (req, res) => {
   } 
 });
 
-app.post('/watchlist/post', async (req, res) => {
+app.post('/api/watchlist', async (req, res) => {
   const { symbol, companyName } = req.body;
 
   try {
