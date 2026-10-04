@@ -9,9 +9,18 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Finnhub and Polygon API key
-const finnhubApiKey = FINNHUB_API_KEY = 'd2s7i8pr01qiq7a30i4gd2s7i8pr01qiq7a30i50'  ;
-const polygonApiKey = 'df5dEFw9XMwSn59Dr1CcLWUiA18EC2dd';
+// Configuration (loaded from environment / .env)
+const REQUIRED_ENV = ['FINNHUB_API_KEY', 'POLYGON_API_KEY', 'MONGODB_URI'];
+const missingEnv = REQUIRED_ENV.filter((name) => !process.env[name]);
+if (missingEnv.length > 0) {
+  console.error(`Missing required environment variables: ${missingEnv.join(', ')}. Copy .env.example to .env and fill them in.`);
+  process.exit(1);
+}
+
+const finnhubApiKey = process.env.FINNHUB_API_KEY;
+const polygonApiKey = process.env.POLYGON_API_KEY;
+const mongoUri = process.env.MONGODB_URI;
+const mongoDbName = process.env.MONGO_DB_NAME || 'stockapp';
 
 
 // Helper function to check if the market is open
@@ -209,10 +218,9 @@ app.get('/api/summary-chart', async (req, res) => {
 // DATABASE
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://mehtahet01:mongodbhet@hetassignment.nilz0m5.mongodb.net/?retryWrites=true&w=majority&appName=HetAssignment";
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
+const client = new MongoClient(mongoUri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
@@ -221,7 +229,7 @@ const client = new MongoClient(uri, {
 });
 
 client.connect();
-const database = client.db('HW3');
+const database = client.db(mongoDbName);
 
 app.get('/api/portfolio', async (req, res) => {
   try {
