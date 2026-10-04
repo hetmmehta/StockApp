@@ -113,10 +113,8 @@ app.get('/api/company-earnings', async (req, res) => {
 // Route for autocomplete search feature
 app.get('/api/search', async (req, res) => {
   const { symbol } = req.query;
-  console.log('Received autocomplete request for query:', symbol);
   const url = `https://finnhub.io/api/v1/search?q=${symbol}&token=${finnhubApiKey}`;
   
-  console.log(url)
   try {
     const response = await axios.get(url);
     const filteredResult = response.data.result.filter(item => 
@@ -124,7 +122,6 @@ app.get('/api/search', async (req, res) => {
     );
 
     res.json(filteredResult);
-    console.log(filteredResult);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -173,11 +170,9 @@ app.get('/api/historical-data', async (req, res) => {
   const formattedfromdate = fromDate.toISOString().split('T')[0]; // YYYY-MM-DD format
 
   const url = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/day/${formattedfromdate}/${formattedtodate}?adjusted=true&sort=asc&apiKey=${polygonApiKey}`;
-console.log(url);
   try {
     const response = await axios.get(url);
     res.json(response.data.results);
-    console.log(response.data.results)
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -209,7 +204,6 @@ app.get('/api/summary-chart', async (req, res) => {
 
     const response = await axios.get(url);
     res.json(response.data.results);
-    console.log(response.data.results);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -242,7 +236,6 @@ app.get('/api/portfolio', async (req, res) => {
         stock.quote = quoteResponse.data;
       }
     }
-    console.log(portfolios)
     res.json(portfolios);
   } catch (error) {
     console.error("Error retrieving portfolio from MongoDB", error);
@@ -256,7 +249,6 @@ app.post('/api/portfolio/buy', async (req, res) => {
     const collection = database.collection('portfolio');
 
     const portfolio = await collection.findOne({});
-    console.log(portfolio);
 
     if (portfolio) {
       let stock = portfolio.Stocks.find(s => s.symbol === stockSymbol);
@@ -315,7 +307,6 @@ app.post('/api/portfolio/sell', async (req, res) => {
     const collection = database.collection('portfolio');
 
     const portfolio = await collection.findOne({ "Stocks.symbol": stockSymbol });
-    console.log(portfolio);
 
     if (portfolio) {
       let stock = portfolio.Stocks.find(s => s.symbol === stockSymbol);
@@ -370,7 +361,6 @@ app.get('/watchlist', async (req, res) => {
     }
 
     res.json(watchlist);
-    console.log(watchlist)
   } catch (error) {
     console.error("Error retrieving watchlist from MongoDB", error);
     res.status(500).json({ error: "Internal Server Error" });
