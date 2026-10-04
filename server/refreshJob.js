@@ -30,10 +30,11 @@ function startQuoteRefreshJob({ market, store, intervalMs = DEFAULT_INTERVAL_MS,
   timer = setInterval(runOnce, intervalMs);
   // Don't keep the process alive just for this timer.
   if (typeof timer.unref === 'function') timer.unref();
-  runOnce();
+  const firstRun = runOnce();
 
   return {
     runOnce,
+    firstRun,
     stop() {
       if (timer) clearInterval(timer);
       timer = null;

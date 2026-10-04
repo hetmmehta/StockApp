@@ -8,6 +8,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test:server": "node --test test/*.test.js",
     "serve:ssr:hw3-app": "node dist/hw3-app/server/server.mjs"
   },
   "private": true,
