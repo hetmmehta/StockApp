@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class StockService {
-  private apiUrl = 'https://stockapp-6m6jkqghca-wl.a.run.app//api'; // Use your server URL here
+  private apiUrl = environment.apiUrl;
   companyProfileExists: any;
 
   constructor(private http: HttpClient) {}
@@ -58,7 +59,7 @@ export class StockService {
       buyPrice,
       stockName,
     };
-    return this.http.post('https://stockapp-6m6jkqghca-wl.a.run.app/api/portfolio/buy', payload);
+    return this.http.post(`${this.apiUrl}/portfolio/buy`, payload);
   }
 
   sellStock(stockSymbol: string, sellQuantity: number, sellPrice: number): Observable<any> {
@@ -67,14 +68,13 @@ export class StockService {
       sellQuantity,
       sellPrice,
     };
-    return this.http.post('https://stockapp-6m6jkqghca-wl.a.run.app/api/portfolio/sell', payload);
+    return this.http.post(`${this.apiUrl}/portfolio/sell`, payload);
   }
 
   private lastSearchUrl: string = '/search/home';
 
   setLastSearchUrl(url: string): void {
     this.lastSearchUrl = url;
-    console.log("............VALUE SET ...........")
   }
 
   getLastSearchUrl(): string {

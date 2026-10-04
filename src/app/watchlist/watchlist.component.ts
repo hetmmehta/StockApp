@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { environment } from '../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
@@ -42,7 +43,7 @@ export class WatchlistComponent implements OnInit {
 
 
   fetchwatchlist(){
-    this.http.get<any[]>('https://stockapp-6m6jkqghca-wl.a.run.app/api/watchlist').subscribe({
+    this.http.get<any[]>(`${environment.apiUrl}/watchlist`).subscribe({
       next: (data) => {
         this.watchlist = data;
         this.isLoading = false;
@@ -54,7 +55,7 @@ export class WatchlistComponent implements OnInit {
   }
 
   removeStock(symbol: string): void {
-    this.http.delete(`https://stockapp-6m6jkqghca-wl.a.run.app/api/watchlist/${symbol}`).subscribe({
+    this.http.delete(`${environment.apiUrl}/watchlist/${symbol}`).subscribe({
       next: () => {
         // Refresh the watchlist after successful removal
         this.fetchwatchlist();

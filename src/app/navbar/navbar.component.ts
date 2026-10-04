@@ -12,7 +12,7 @@
 import { Component, NgModule } from '@angular/core';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { Router } from '@angular/router';
-import { StockService } from '../../../stock.service';
+import { StockService } from '../services/stock.service';
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.component.html',

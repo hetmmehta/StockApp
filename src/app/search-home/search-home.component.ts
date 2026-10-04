@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, Subject, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, catchError, finalize, startWith, map } from 'rxjs/operators';
-import { StockService } from '../../../stock.service';
+import { StockService } from '../services/stock.service';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 
 

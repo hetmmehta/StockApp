@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { environment } from '../../environments/environment';
 import { ActivatedRoute, Router } from '@angular/router';
-import { StockService } from '../../../stock.service';
+import { StockService } from '../services/stock.service';
 import { DatePipe } from '@angular/common';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, Subscription, interval, Subject, of } from 'rxjs';
@@ -289,7 +290,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
 
   // Container 1 (Portfolio)
   private fetchPortfolio(): void {
-    this.http.get<PortfolioItem[]>('https://stockapp-6m6jkqghca-wl.a.run.app/api/portfolio').subscribe({
+    this.http.get<PortfolioItem[]>(`${environment.apiUrl}/portfolio`).subscribe({
       next: (data) => {
         this.portfolio = data.map(portfolio => ({
           ...portfolio,
@@ -424,7 +425,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
   }
 
   checkPortfolio() {
-    this.http.get<PortfolioItem[]>('https://stockapp-6m6jkqghca-wl.a.run.app/api/portfolio').subscribe({
+    this.http.get<PortfolioItem[]>(`${environment.apiUrl}/portfolio`).subscribe({
       next: (portfolio) => {
         const portfolioItem = portfolio[0]; 
         const foundStock = portfolioItem.Stocks.find(stock => stock.symbol === this.companyProfile.ticker);
@@ -443,7 +444,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
 
   // Container 1 (Watchlist)
   checkWatchlist() {
-    this.http.get<any[]>('https://stockapp-6m6jkqghca-wl.a.run.app/api/watchlist').subscribe({
+    this.http.get<any[]>(`${environment.apiUrl}/watchlist`).subscribe({
       next: (watchlist) => {
         this.isStarFilled = watchlist.some(item => item.stock.some((stock: { symbol: any; }) => stock.symbol === this.companyProfile.ticker));
       },
@@ -452,7 +453,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
   }
     
   fetchwatchlist(){
-    this.http.get<any[]>('https://stockapp-6m6jkqghca-wl.a.run.app/api/watchlist').subscribe({
+    this.http.get<any[]>(`${environment.apiUrl}/watchlist`).subscribe({
       next: (data) => {
         this.watchlist = data;
       },
@@ -472,7 +473,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
       };
       console.log(payload)
 
-      this.http.post(`https://stockapp-6m6jkqghca-wl.a.run.app/api/watchlist/post`, payload).subscribe({
+      this.http.post(`${environment.apiUrl}/watchlist/post`, payload).subscribe({
         next: () => console.log('Stock added to watchlist'),
         error: (error) => console.error('Error adding stock to watchlist:', error)
       });
@@ -483,7 +484,7 @@ export class SearchResultsComponent implements OnInit, OnDestroy {
       setTimeout(() => this.showAlert = false, 5000);
     } else {
 
-      this.http.delete(`https://stockapp-6m6jkqghca-wl.a.run.app/api/watchlist/${symbol}`).subscribe({
+      this.http.delete(`${environment.apiUrl}/watchlist/${symbol}`).subscribe({
       next: () => {
         this.fetchwatchlist();
       },

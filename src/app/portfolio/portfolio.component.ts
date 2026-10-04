@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
+import { environment } from '../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Observable } from 'rxjs';
-import { StockService } from '../../../stock.service';
+import { StockService } from '../services/stock.service';
 
 
 interface Quote {
@@ -56,7 +57,7 @@ export class PortfolioComponent implements OnInit {
   }
 
   fetchPortfolio(): void {
-    this.http.get<PortfolioItem[]>('https://stockapp-6m6jkqghca-wl.a.run.app/api/portfolio').subscribe({
+    this.http.get<PortfolioItem[]>(`${environment.apiUrl}/portfolio`).subscribe({
       next: (data) => {
         this.portfolio = data.map(portfolio => ({
           ...portfolio,
